@@ -23,7 +23,7 @@ class Game {  // NOLINT
       const std::string &input) const = 0;
 
   // Recursively count nodes for debugging move generation
-  [[nodiscard]] size_t Perft(int depth) {
+  [[nodiscard]] size_t Perft(size_t depth) {
     if (depth == 0) {
       return 1;
     }
