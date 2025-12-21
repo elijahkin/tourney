@@ -5,6 +5,7 @@
 #include <optional>
 #include <regex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../tourney_base.hpp"
@@ -152,9 +153,13 @@ class Chess final : public Game<ChessMove> {  // NOLINT
     return output;
   }
 
-  void InsertToSquaresSliding(Square from, std::vector<Square> &tos,
-                              const std::vector<int8_t> &pattern,
-                              bool knight_or_king = false) const;
+  void InsertToSquaresSliding(
+      Square from, std::vector<Square> &tos,
+      const std::vector<std::pair<int8_t, int8_t>> &directions) const;
+
+  void InsertToSquaresLeaping(
+      Square from, std::vector<Square> &tos,
+      const std::vector<std::pair<int8_t, int8_t>> &directions) const;
 
   void InsertToSquaresPawn(Square from, std::vector<Square> &tos) const;
 
@@ -269,43 +274,53 @@ std::optional<ChessMove> Chess::Parse(const std::string &input) const {
       .from = from_candidates[0], .to = to, .captured = board_[to]};
 }
 
-// NOLINTNEXTLINE
-void Chess::InsertToSquaresSliding(Square from, std::vector<Square> &tos,
-                                   const std::vector<int8_t> &pattern,
-                                   bool knight_or_king) const {
+void Chess::InsertToSquaresSliding(
+    Square from, std::vector<Square> &tos,
+    const std::vector<std::pair<int8_t, int8_t>> &directions) const {
   const auto from_rank = static_cast<int8_t>(from / 8);
   const auto from_file = static_cast<int8_t>(from % 8);
 
-  for (auto step_size : pattern) {
-    for (auto to = static_cast<Square>(from + step_size); to < 64;
-         to += step_size) {
-      const auto to_rank = static_cast<int8_t>(to / 8);
-      const auto to_file = static_cast<int8_t>(to % 8);
+  for (auto const &[dr, df] : directions) {
+    auto to_rank = from_rank + dr;
+    auto to_file = from_file + df;
 
-      if (abs(step_size) == 1) {
-        // Ensures horizontal moves do not change rank.
-        if (to_rank != from_rank) {
-          break;
-        }
-      } else if (abs(step_size) == 8) {
-        // Ensures vertical moves do not change file.
-        if (to_file != from_file) {
-          break;
-        }
-      } else if (abs(step_size) == 7 || abs(step_size) == 9) {
-        // Ensures diagonal moves change rank and file equally.
-        if (abs(to_rank - from_rank) != abs(to_file - from_file)) {
-          break;
-        }
-      }
+    // Continue sliding until we hit the board edge
+    while (to_rank >= 0 && to_rank < 8 && to_file >= 0 && to_file < 8) {
+      const auto to = static_cast<Square>((to_rank * 8) + to_file);
 
-      // We can move to a square if it is empty or has an opponent
+      // We can move to a square if its empty or occupied by an opponent
       if (!IsOccupied(to) || IsOpponent(to)) {
         tos.push_back(to);
       }
+
       // We can't move through pieces
-      if (IsOccupied(to) || knight_or_king) {
+      if (IsOccupied(to)) {
         break;
+      }
+
+      to_rank += dr;
+      to_file += df;
+    }
+  }
+}
+
+void Chess::InsertToSquaresLeaping(
+    Square from, std::vector<Square> &tos,
+    const std::vector<std::pair<int8_t, int8_t>> &directions) const {
+  const auto from_rank = static_cast<int8_t>(from / 8);
+  const auto from_file = static_cast<int8_t>(from % 8);
+
+  for (auto const &[dr, df] : directions) {
+    const int to_rank = from_rank + dr;
+    const int to_file = from_file + df;
+
+    // Boundary check to ensure the move stays on the board
+    if (to_rank >= 0 && to_rank < 8 && to_file >= 0 && to_file < 8) {
+      const auto to = static_cast<Square>((to_rank * 8) + to_file);
+
+      // Can't move to a square occupied by your own piece
+      if (!IsOccupied(to) || IsOpponent(to)) {
+        tos.push_back(to);
       }
     }
   }
@@ -353,29 +368,39 @@ void Chess::InsertToSquaresPawn(Square from, std::vector<Square> &tos) const {
 
 std::vector<Square> Chess::GetToSquares(Square from) const {
   std::vector<Square> tos;
+
+  // Define direction vectors
+  const std::vector<std::pair<int8_t, int8_t>> orthogonal = {
+      {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+  const std::vector<std::pair<int8_t, int8_t>> diagonal = {
+      {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+  const std::vector<std::pair<int8_t, int8_t>> royal_dirs = {
+      {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+  const std::vector<std::pair<int8_t, int8_t>> knight_dirs = {
+      {2, 1}, {2, -1}, {-2, 1}, {-2, -1}, {1, 2}, {1, -2}, {-1, 2}, {-1, -2}};
+
   switch (board_[from]) {
     case kEmpty:
       break;
     case kWhiteKing:
     case kBlackKing:
-      InsertToSquaresSliding(from, tos, {-9, -8, -7, -1, 1, 7, 8, 9}, true);
+      InsertToSquaresLeaping(from, tos, royal_dirs);
       break;
     case kWhiteQueen:
     case kBlackQueen:
-      InsertToSquaresSliding(from, tos, {-9, -8, -7, -1, 1, 7, 8, 9});
+      InsertToSquaresSliding(from, tos, royal_dirs);
       break;
     case kWhiteRook:
     case kBlackRook:
-      InsertToSquaresSliding(from, tos, {-8, -1, 1, 8});
+      InsertToSquaresSliding(from, tos, orthogonal);
       break;
     case kWhiteBishop:
     case kBlackBishop:
-      InsertToSquaresSliding(from, tos, {-9, -7, 7, 9});
+      InsertToSquaresSliding(from, tos, diagonal);
       break;
     case kWhiteKnight:
     case kBlackKnight:
-      InsertToSquaresSliding(from, tos, {-17, -15, -10, -6, 6, 10, 15, 17},
-                             true);
+      InsertToSquaresLeaping(from, tos, knight_dirs);
       break;
     case kWhitePawn:
     case kBlackPawn:

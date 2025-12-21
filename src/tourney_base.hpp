@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <vector>
@@ -20,6 +21,21 @@ class Game {  // NOLINT
 
   [[nodiscard]] virtual std::optional<Move> Parse(
       const std::string &input) const = 0;
+
+  // Recursively count nodes for debugging move generation
+  [[nodiscard]] size_t Perft(int depth) {
+    if (depth == 0) {
+      return 1;
+    }
+
+    size_t nodes = 0;
+    for (const auto &move : GenerateLegalMoves()) {
+      MakeMove(move);
+      nodes += Perft(depth - 1);
+      UnmakeMove(move);
+    }
+    return nodes;
+  }
 };
 
 // Defines the necessary functions to implement an agent.
