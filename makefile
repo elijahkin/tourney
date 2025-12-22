@@ -1,5 +1,5 @@
 CC = clang++
-CFLAGS = -std=c++23 -O2 -Wall -Wextra -Wpedantic -Werror -fno-exceptions -fno-rtti -flto
+CFLAGS = -std=c++23 -O2 -Wall -Wextra -Wpedantic -Werror -fno-exceptions -fno-rtti -flto -s
 
 all: chess chess_perft
 

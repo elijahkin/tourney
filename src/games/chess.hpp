@@ -370,13 +370,14 @@ std::vector<Square> Chess::GetToSquares(Square from) const {
   std::vector<Square> tos;
 
   // Define direction vectors
-  const std::vector<std::pair<int8_t, int8_t>> orthogonal = {
+  using Direction = std::pair<int8_t, int8_t>;
+  static const std::vector<Direction> kOrthogonal = {
       {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-  const std::vector<std::pair<int8_t, int8_t>> diagonal = {
+  static const std::vector<Direction> kDiagonal = {
       {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
-  const std::vector<std::pair<int8_t, int8_t>> royal_dirs = {
+  static const std::vector<Direction> kRoyalDirs = {
       {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
-  const std::vector<std::pair<int8_t, int8_t>> knight_dirs = {
+  static const std::vector<Direction> kKnightDirs = {
       {2, 1}, {2, -1}, {-2, 1}, {-2, -1}, {1, 2}, {1, -2}, {-1, 2}, {-1, -2}};
 
   switch (board_[from]) {
@@ -384,23 +385,23 @@ std::vector<Square> Chess::GetToSquares(Square from) const {
       break;
     case kWhiteKing:
     case kBlackKing:
-      InsertToSquaresLeaping(from, tos, royal_dirs);
+      InsertToSquaresLeaping(from, tos, kRoyalDirs);
       break;
     case kWhiteQueen:
     case kBlackQueen:
-      InsertToSquaresSliding(from, tos, royal_dirs);
+      InsertToSquaresSliding(from, tos, kRoyalDirs);
       break;
     case kWhiteRook:
     case kBlackRook:
-      InsertToSquaresSliding(from, tos, orthogonal);
+      InsertToSquaresSliding(from, tos, kOrthogonal);
       break;
     case kWhiteBishop:
     case kBlackBishop:
-      InsertToSquaresSliding(from, tos, diagonal);
+      InsertToSquaresSliding(from, tos, kDiagonal);
       break;
     case kWhiteKnight:
     case kBlackKnight:
-      InsertToSquaresLeaping(from, tos, knight_dirs);
+      InsertToSquaresLeaping(from, tos, kKnightDirs);
       break;
     case kWhitePawn:
     case kBlackPawn:
